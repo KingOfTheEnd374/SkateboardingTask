@@ -2,6 +2,7 @@
 
 
 #include "Player/SkateboardingPawn.h"
+#include <Kismet/KismetMathLibrary.h>
 
 // Sets default values
 ASkateboardingPawn::ASkateboardingPawn()
@@ -21,6 +22,7 @@ ASkateboardingPawn::ASkateboardingPawn()
 
 	Root = CreateDefaultSubobject<USceneComponent>(TEXT("Root"));
 	Root->SetupAttachment(PhysicsSphere);
+	Root->SetUsingAbsoluteRotation(true);
 
 	SprintArm = CreateDefaultSubobject<USpringArmComponent>(TEXT("SprintArm"));
 	SprintArm->SetupAttachment(Root);
@@ -49,6 +51,9 @@ void ASkateboardingPawn::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
+	EnforceSpeedLimit();
+
+	RotateCharacterFromVelocity(DeltaTime);
 }
 
 // Called to bind functionality to input
@@ -61,14 +66,48 @@ void ASkateboardingPawn::SetupPlayerInputComponent(UInputComponent* PlayerInputC
 	PlayerInputComponent->BindAction("Jump", IE_Pressed, this, &ASkateboardingPawn::Jump_Pressed);
 }
 
+void ASkateboardingPawn::EnforceSpeedLimit()
+{
+	FVector CurrentVelocity = PhysicsSphere->GetPhysicsLinearVelocity();
+	FVector VelocityDir = CurrentVelocity.GetSafeNormal();
+	float CurrentSpeed = CurrentVelocity.Size();
+
+	// Don't allow speed bigger than max speed
+	FVector NewVelocity = VelocityDir * fminf(CurrentSpeed, MaxSpeed);
+
+	PhysicsSphere->SetPhysicsLinearVelocity(NewVelocity);
+}
+
+void ASkateboardingPawn::RotateCharacterFromVelocity(float DeltaTime)
+{
+	FRotator CurrentRot = Root->GetComponentRotation();
+	FRotator TargetRot = UKismetMathLibrary::MakeRotFromX(GetHorizontalVelocity());
+	FRotator NewRot = FMath::RInterpTo(CurrentRot, TargetRot, DeltaTime, RotationSpeed);
+	Root->SetWorldRotation(NewRot);
+}
+
+FVector ASkateboardingPawn::GetHorizontalVelocity()
+{
+	FVector Velocity = PhysicsSphere->GetPhysicsLinearVelocity();
+	Velocity.Z = 0.0f;
+	return Velocity;
+}
+
 void ASkateboardingPawn::MoveForward(float AxisValue)
 {
+	FVector ForwardDir = Root->GetForwardVector();
+	PhysicsSphere->AddForce(ForwardDir * 1000.0f * AxisValue, NAME_None, true);
 }
 
 void ASkateboardingPawn::MoveRight(float AxisValue)
 {
+	FVector RightDir = Root->GetRightVector();
+	float TurningMultiplier = fmaxf(GetHorizontalVelocity().Size() / 500.0f, 1.0f);
+	PhysicsSphere->AddForce(RightDir * 1000.0f * AxisValue * TurningMultiplier, NAME_None, true);
 }
 
 void ASkateboardingPawn::Jump_Pressed()
 {
+	// TODO: Disable jumping while in air.
+	PhysicsSphere->AddImpulse(FVector(0.0f, 0.0f, 1000.0f), NAME_None, true);
 }
