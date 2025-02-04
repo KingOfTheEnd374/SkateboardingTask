@@ -3,6 +3,7 @@
 
 #include "Player/SkateboardingPawn.h"
 #include <Kismet/KismetMathLibrary.h>
+#include "Kismet/KismetSystemLibrary.h"
 
 // Sets default values
 ASkateboardingPawn::ASkateboardingPawn()
@@ -13,11 +14,11 @@ ASkateboardingPawn::ASkateboardingPawn()
 	PhysicsSphere = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("PhysicsSphere"));
 	SetRootComponent(PhysicsSphere);
 	PhysicsSphere->SetVisibility(false);
-	PhysicsSphere->SetGenerateOverlapEvents(false);
-	PhysicsSphere->SetCollisionObjectType(ECC_PhysicsBody);
+	PhysicsSphere->SetGenerateOverlapEvents(true);
+	PhysicsSphere->SetCollisionObjectType(ECC_Pawn);
 	PhysicsSphere->SetCollisionResponseToAllChannels(ECR_Ignore);
 	PhysicsSphere->SetCollisionResponseToChannel(ECC_WorldStatic, ECR_Block);
-	PhysicsSphere->SetCollisionResponseToChannel(ECC_WorldDynamic, ECR_Block);
+	PhysicsSphere->SetCollisionResponseToChannel(ECC_WorldDynamic, ECR_Overlap);
 	PhysicsSphere->SetSimulatePhysics(true);
 
 	Root = CreateDefaultSubobject<USceneComponent>(TEXT("Root"));
@@ -43,7 +44,7 @@ ASkateboardingPawn::ASkateboardingPawn()
 void ASkateboardingPawn::BeginPlay()
 {
 	Super::BeginPlay();
-	
+
 }
 
 // Called every frame
@@ -54,6 +55,10 @@ void ASkateboardingPawn::Tick(float DeltaTime)
 	EnforceSpeedLimit();
 
 	RotateCharacterFromVelocity(DeltaTime);
+
+	CheckLanded(DeltaTime);
+
+	PhysicsSphere->SetPhysicsAngularVelocityInDegrees(FVector(0.0f));
 }
 
 // Called to bind functionality to input
@@ -80,10 +85,32 @@ void ASkateboardingPawn::EnforceSpeedLimit()
 
 void ASkateboardingPawn::RotateCharacterFromVelocity(float DeltaTime)
 {
+	FVector CurrentVelocity = GetHorizontalVelocity();
+	if (CurrentVelocity.Size() < 1.0f) return;
 	FRotator CurrentRot = Root->GetComponentRotation();
-	FRotator TargetRot = UKismetMathLibrary::MakeRotFromX(GetHorizontalVelocity());
+	FRotator TargetRot = UKismetMathLibrary::MakeRotFromX(CurrentVelocity);
 	FRotator NewRot = FMath::RInterpTo(CurrentRot, TargetRot, DeltaTime, RotationSpeed);
 	Root->SetWorldRotation(NewRot);
+}
+
+void ASkateboardingPawn::CheckLanded(float DeltaTime)
+{
+	TimeUntilLandedCheck -= DeltaTime;
+	if (TimeUntilLandedCheck <= 0.0f)
+	{
+		bool OnGroundNow = OnGround();
+		if (!PreviouslyOnGround && OnGroundNow)
+		{
+			Landed();
+		}
+		TimeUntilLandedCheck = LandedCheckInterval;
+		PreviouslyOnGround = OnGroundNow;
+	}
+}
+
+void ASkateboardingPawn::Landed()
+{
+	Jumping = false;
 }
 
 FVector ASkateboardingPawn::GetHorizontalVelocity()
@@ -93,21 +120,45 @@ FVector ASkateboardingPawn::GetHorizontalVelocity()
 	return Velocity;
 }
 
+bool ASkateboardingPawn::OnGround()
+{
+	// Sphere trace downwards, if hits then pawn is on ground.
+	FHitResult Hit;
+	UKismetSystemLibrary::SphereTraceSingleForObjects(GetWorld(), 
+		GetActorLocation(), 
+		GetActorLocation() - FVector(0.0f, 0.0f, 5.0f), 49.0f, 
+		{ UEngineTypes::ConvertToObjectType(ECC_WorldStatic) }, 
+		false, {}, EDrawDebugTrace::None, Hit, true);
+
+	return Hit.bBlockingHit;
+}
+
 void ASkateboardingPawn::MoveForward(float AxisValue)
 {
+	if (!PreviouslyOnGround) return;
+
 	FVector ForwardDir = Root->GetForwardVector();
-	PhysicsSphere->AddForce(ForwardDir * 1000.0f * AxisValue, NAME_None, true);
+	float AccelerationMultiplier = 1.0f;
+	//if (!PreviouslyOnGround) AccelerationMultiplier *= 0.2f;
+	PhysicsSphere->AddForce(ForwardDir * 1000.0f * AxisValue * AccelerationMultiplier, NAME_None, true);
+
+	Boosting = AxisValue > 0.0f;
 }
 
 void ASkateboardingPawn::MoveRight(float AxisValue)
 {
+
 	FVector RightDir = Root->GetRightVector();
 	float TurningMultiplier = fmaxf(GetHorizontalVelocity().Size() / 500.0f, 1.0f);
+	//if (!PreviouslyOnGround) TurningMultiplier *= 0.2f;
 	PhysicsSphere->AddForce(RightDir * 1000.0f * AxisValue * TurningMultiplier, NAME_None, true);
 }
 
 void ASkateboardingPawn::Jump_Pressed()
 {
-	// TODO: Disable jumping while in air.
-	PhysicsSphere->AddImpulse(FVector(0.0f, 0.0f, 1000.0f), NAME_None, true);
+	if (OnGround())
+	{
+		PhysicsSphere->AddImpulse(FVector(0.0f, 0.0f, 1000.0f), NAME_None, true);
+		Jumping = true;
+	}
 }

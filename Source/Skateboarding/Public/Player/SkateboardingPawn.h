@@ -41,8 +41,17 @@ public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere)
 	float RotationSpeed = 20.0f;
 
+	UPROPERTY(BlueprintReadOnly)
+	bool Boosting;
+
+	UPROPERTY(BlueprintReadOnly)
+	bool Jumping;
+
 	UFUNCTION(BlueprintCallable)
 	FVector GetHorizontalVelocity();
+
+	UFUNCTION(BlueprintCallable)
+	bool OnGround();
 
 protected:
 
@@ -55,6 +64,20 @@ protected:
 	UFUNCTION()
 	void RotateCharacterFromVelocity(float DeltaTime);
 	
+	UPROPERTY()
+	bool PreviouslyOnGround;
+
+	UPROPERTY()
+	float LandedCheckInterval = 0.05f;
+
+	UPROPERTY()
+	float TimeUntilLandedCheck = 0.0f;
+
+	UFUNCTION()
+	void CheckLanded(float DeltaTime);
+
+	UFUNCTION()
+	void Landed();
 
 	// INPUTS
 	UFUNCTION()
