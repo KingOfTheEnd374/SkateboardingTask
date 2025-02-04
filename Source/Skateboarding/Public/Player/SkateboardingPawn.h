@@ -98,6 +98,8 @@ protected:
 	void MoveRight(float AxisValue);
 	UFUNCTION()
 	void Jump_Pressed();
+	UFUNCTION()
+	void QuitGame();
 
 public:	
 	// Called every frame

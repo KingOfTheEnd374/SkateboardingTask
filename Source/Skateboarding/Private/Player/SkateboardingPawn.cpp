@@ -4,6 +4,7 @@
 #include "Player/SkateboardingPawn.h"
 #include <Kismet/KismetMathLibrary.h>
 #include "Kismet/KismetSystemLibrary.h"
+#include <Kismet/GameplayStatics.h>
 
 // Sets default values
 ASkateboardingPawn::ASkateboardingPawn()
@@ -73,6 +74,7 @@ void ASkateboardingPawn::SetupPlayerInputComponent(UInputComponent* PlayerInputC
 	PlayerInputComponent->BindAxis("MoveForward", this, &ASkateboardingPawn::MoveForward);
 	PlayerInputComponent->BindAxis("MoveRight", this, &ASkateboardingPawn::MoveRight);
 	PlayerInputComponent->BindAction("Jump", IE_Pressed, this, &ASkateboardingPawn::Jump_Pressed);
+	PlayerInputComponent->BindAction("Exit", IE_Pressed, this, &ASkateboardingPawn::QuitGame);
 }
 
 void ASkateboardingPawn::EnforceSpeedLimit()
@@ -196,8 +198,10 @@ void ASkateboardingPawn::MoveRight(float AxisValue)
 	if (Falling) TurningMultiplier *= 0.2f;
 
 	// To avoid turning in place
-	if (PhysicsSphere->GetPhysicsLinearVelocity().Size() < 100.0f) return;
-	PhysicsSphere->AddForce(RightDir * 1000.0f * AxisValue * TurningMultiplier, NAME_None, true);
+	if (PhysicsSphere->GetPhysicsLinearVelocity().Size() > 100.0f)
+	{
+		PhysicsSphere->AddForce(RightDir * 1000.0f * AxisValue * TurningMultiplier, NAME_None, true);
+	}
 
 	TurnTilt = FMath::FInterpTo(TurnTilt, AxisValue, DeltaT, 5.0f);
 }
@@ -209,4 +213,9 @@ void ASkateboardingPawn::Jump_Pressed()
 		PhysicsSphere->AddImpulse(FVector(0.0f, 0.0f, 500.0f), NAME_None, true);
 		Jumping = true;
 	}
+}
+
+void ASkateboardingPawn::QuitGame()
+{
+	UKismetSystemLibrary::QuitGame(GetWorld(), UGameplayStatics::GetPlayerController(GetWorld(), 0), EQuitPreference::Quit, false);
 }
