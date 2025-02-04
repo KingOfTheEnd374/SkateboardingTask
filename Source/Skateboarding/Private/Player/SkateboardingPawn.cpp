@@ -58,6 +58,8 @@ void ASkateboardingPawn::Tick(float DeltaTime)
 
 	RotateCharacterFromVelocity(DeltaTime);
 
+	AlignSkateboardToGround(DeltaTime);
+
 	CheckLanded(DeltaTime);
 
 	PhysicsSphere->SetPhysicsAngularVelocityInDegrees(FVector(0.0f));
@@ -93,6 +95,44 @@ void ASkateboardingPawn::RotateCharacterFromVelocity(float DeltaTime)
 	FRotator TargetRot = UKismetMathLibrary::MakeRotFromX(CurrentVelocity);
 	FRotator NewRot = FMath::RInterpTo(CurrentRot, TargetRot, DeltaTime, RotationSpeed);
 	Root->SetWorldRotation(NewRot);
+}
+
+void ASkateboardingPawn::AlignSkateboardToGround(float DeltaTime)
+{
+	FVector FrontPoint, BackPoint, RightPoint, LeftPoint;
+
+	FrontPoint = SkateboardAlignTrace(FVector(20.0f, 0.0f, -30.0f));
+	BackPoint = SkateboardAlignTrace(FVector(-20.0f, 0.0f, -30.0f));
+
+	float Pitch = UKismetMathLibrary::FindLookAtRotation(FrontPoint, BackPoint).Pitch;
+
+	RightPoint = SkateboardAlignTrace(FVector(0.0f, 10.0f, -30.0f));
+	LeftPoint = SkateboardAlignTrace(FVector(0.0f, -10.0f, -30.0f));
+
+	float Roll = UKismetMathLibrary::FindLookAtRotation(RightPoint, LeftPoint).Pitch;
+
+	FRotator CurrentRot = SkateboardMesh->GetRelativeRotation();
+
+	// Because it is rotated -90 deg, it will use roll
+	CurrentRot.Roll = FMath::FInterpTo(CurrentRot.Roll, Pitch, DeltaTime, 5.0f);
+
+	// Because it is rotated -90 deg, it will use pitch
+	CurrentRot.Pitch = FMath::FInterpTo(CurrentRot.Pitch, Roll, DeltaTime, 5.0f);
+
+	SkateboardMesh->SetRelativeRotation(CurrentRot);
+}
+
+FVector ASkateboardingPawn::SkateboardAlignTrace(FVector TraceStart)
+{
+	FHitResult Hit;
+	FVector Start = UKismetMathLibrary::TransformLocation(Root->GetComponentTransform(), TraceStart);
+	UKismetSystemLibrary::LineTraceSingleForObjects(GetWorld(),
+		Start,
+		Start - FVector(0.0f, 0.0f, 100.0f),
+		{ UEngineTypes::ConvertToObjectType(ECC_WorldStatic) },
+		false, {}, EDrawDebugTrace::None, Hit, true);
+
+	return Hit.bBlockingHit ? Hit.ImpactPoint : Hit.TraceEnd;
 }
 
 void ASkateboardingPawn::CheckLanded(float DeltaTime)
@@ -159,7 +199,7 @@ void ASkateboardingPawn::MoveRight(float AxisValue)
 	if (PhysicsSphere->GetPhysicsLinearVelocity().Size() < 100.0f) return;
 	PhysicsSphere->AddForce(RightDir * 1000.0f * AxisValue * TurningMultiplier, NAME_None, true);
 
-	TurnTilt = FMath::FInterpTo(TurnTilt, AxisValue, DeltaT, 2.0f);
+	TurnTilt = FMath::FInterpTo(TurnTilt, AxisValue, DeltaT, 5.0f);
 }
 
 void ASkateboardingPawn::Jump_Pressed()

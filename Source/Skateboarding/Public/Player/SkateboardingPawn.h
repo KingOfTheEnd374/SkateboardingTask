@@ -73,6 +73,12 @@ protected:
 	UFUNCTION()
 	void RotateCharacterFromVelocity(float DeltaTime);
 
+	UFUNCTION()
+	void AlignSkateboardToGround(float DeltaTime);
+
+	UFUNCTION()
+	FVector SkateboardAlignTrace(FVector TraceStart);
+
 	UPROPERTY()
 	float LandedCheckInterval = 0.05f;
 
