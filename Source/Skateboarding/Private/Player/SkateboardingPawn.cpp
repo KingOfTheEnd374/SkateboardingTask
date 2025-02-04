@@ -52,6 +52,8 @@ void ASkateboardingPawn::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
+	DeltaT = DeltaTime;
+
 	EnforceSpeedLimit();
 
 	RotateCharacterFromVelocity(DeltaTime);
@@ -99,12 +101,12 @@ void ASkateboardingPawn::CheckLanded(float DeltaTime)
 	if (TimeUntilLandedCheck <= 0.0f)
 	{
 		bool OnGroundNow = OnGround();
-		if (!PreviouslyOnGround && OnGroundNow)
+		if (Falling && OnGroundNow)
 		{
 			Landed();
 		}
 		TimeUntilLandedCheck = LandedCheckInterval;
-		PreviouslyOnGround = OnGroundNow;
+		Falling = !OnGroundNow;
 	}
 }
 
@@ -137,7 +139,7 @@ void ASkateboardingPawn::MoveForward(float AxisValue)
 {
 	FVector ForwardDir = Root->GetForwardVector();
 	float AccelerationMultiplier = 1.0f;
-	if (!PreviouslyOnGround) AccelerationMultiplier *= 0.2f;
+	if (Falling) AccelerationMultiplier *= 0.2f;
 
 	// To avoid turning in place
 	if (PhysicsSphere->GetPhysicsLinearVelocity().Size() < 100.0f) AxisValue = fmaxf(AxisValue, 0.0f);
@@ -151,18 +153,20 @@ void ASkateboardingPawn::MoveRight(float AxisValue)
 
 	FVector RightDir = Root->GetRightVector();
 	float TurningMultiplier = fmaxf(GetHorizontalVelocity().Size() / 500.0f, 1.0f);
-	if (!PreviouslyOnGround) TurningMultiplier *= 0.2f;
+	if (Falling) TurningMultiplier *= 0.2f;
 
 	// To avoid turning in place
 	if (PhysicsSphere->GetPhysicsLinearVelocity().Size() < 100.0f) return;
 	PhysicsSphere->AddForce(RightDir * 1000.0f * AxisValue * TurningMultiplier, NAME_None, true);
+
+	TurnTilt = FMath::FInterpTo(TurnTilt, AxisValue, DeltaT, 2.0f);
 }
 
 void ASkateboardingPawn::Jump_Pressed()
 {
 	if (OnGround())
 	{
-		PhysicsSphere->AddImpulse(FVector(0.0f, 0.0f, 1000.0f), NAME_None, true);
+		PhysicsSphere->AddImpulse(FVector(0.0f, 0.0f, 500.0f), NAME_None, true);
 		Jumping = true;
 	}
 }

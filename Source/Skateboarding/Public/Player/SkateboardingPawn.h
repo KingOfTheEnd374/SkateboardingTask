@@ -47,6 +47,12 @@ public:
 	UPROPERTY(BlueprintReadOnly)
 	bool Jumping;
 
+	UPROPERTY(BlueprintReadOnly)
+	bool Falling;
+
+	UPROPERTY(BlueprintReadOnly)
+	float TurnTilt;
+
 	UFUNCTION(BlueprintCallable)
 	FVector GetHorizontalVelocity();
 
@@ -58,14 +64,14 @@ protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
 
+	UPROPERTY()
+	float DeltaT;
+
 	UFUNCTION()
 	void EnforceSpeedLimit();
 
 	UFUNCTION()
 	void RotateCharacterFromVelocity(float DeltaTime);
-	
-	UPROPERTY()
-	bool PreviouslyOnGround;
 
 	UPROPERTY()
 	float LandedCheckInterval = 0.05f;
