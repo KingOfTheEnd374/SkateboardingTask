@@ -36,7 +36,7 @@ public:
 	UStaticMeshComponent* SkateboardMesh;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere)
-	float MaxSpeed = 1000.0f;
+	float MaxSpeed = 2000.0f;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere)
 	float RotationSpeed = 20.0f;

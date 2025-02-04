@@ -34,7 +34,6 @@ void AObstacle::BeginPlay()
 
 void AObstacle::BeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
-	GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Yellow, TEXT("Overlap"));
 	ASkateboardingPawn* Player = Cast<ASkateboardingPawn>(OtherActor);
 	if (Player)
 	{

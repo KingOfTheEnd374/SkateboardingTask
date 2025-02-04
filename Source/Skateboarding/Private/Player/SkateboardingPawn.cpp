@@ -135,12 +135,13 @@ bool ASkateboardingPawn::OnGround()
 
 void ASkateboardingPawn::MoveForward(float AxisValue)
 {
-	if (!PreviouslyOnGround) return;
-
 	FVector ForwardDir = Root->GetForwardVector();
 	float AccelerationMultiplier = 1.0f;
-	//if (!PreviouslyOnGround) AccelerationMultiplier *= 0.2f;
-	PhysicsSphere->AddForce(ForwardDir * 1000.0f * AxisValue * AccelerationMultiplier, NAME_None, true);
+	if (!PreviouslyOnGround) AccelerationMultiplier *= 0.2f;
+
+	// To avoid turning in place
+	if (PhysicsSphere->GetPhysicsLinearVelocity().Size() < 100.0f) AxisValue = fmaxf(AxisValue, 0.0f);
+	PhysicsSphere->AddForce(ForwardDir * 1000.0f * AxisValue * AccelerationMultiplier, NAME_None, true);	
 
 	Boosting = AxisValue > 0.0f;
 }
@@ -150,7 +151,10 @@ void ASkateboardingPawn::MoveRight(float AxisValue)
 
 	FVector RightDir = Root->GetRightVector();
 	float TurningMultiplier = fmaxf(GetHorizontalVelocity().Size() / 500.0f, 1.0f);
-	//if (!PreviouslyOnGround) TurningMultiplier *= 0.2f;
+	if (!PreviouslyOnGround) TurningMultiplier *= 0.2f;
+
+	// To avoid turning in place
+	if (PhysicsSphere->GetPhysicsLinearVelocity().Size() < 100.0f) return;
 	PhysicsSphere->AddForce(RightDir * 1000.0f * AxisValue * TurningMultiplier, NAME_None, true);
 }
 
